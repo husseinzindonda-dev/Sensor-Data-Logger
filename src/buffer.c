@@ -83,3 +83,44 @@ ring_buffer_t* buffer_create(size_t capacity)
     return buf;
 
 }
+void buffer_destroy(ring_buffer_t *buf)
+{
+    // Check if buf is NULL 
+    if (buf == NULL) {
+        return;
+    }
+
+    printf("[DEBUG] buffer_destroy() called\n");
+
+    // Free the data storage 
+    free(buf->buffer);
+
+    // defensive cleanup 
+    buf->buffer = NULL;
+    buf->head   = NULL;
+    buf->tail   = NULL;
+
+    // Free the control structure 
+    free(buf);
+}
+bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
+    if (buf == NULL || reading == NULL){
+        return false;
+    }
+    printf("[DEBUG] buffer_write() called\n");
+    // Check if buffer is full
+    if (buf->count == buf->capacity){
+        buf->status.is_full   = 1;
+        buf->status.overflows = 1;
+        return false;
+    }
+    // Copying data into current head position
+    *(buf->head) = *reading
+    buf->head++;
+    if (buf->head >= buf->buffer + buf->capacity) {
+        buf->head = buf->buffer;   // wrap-around
+    }
+    buf->count++; // updating counter
+    buf->status.is_empty = 0; // false if 0
+    buf->status.is_full  = (buf->count == buf->capacity); //true if count = capacity of ring buffer
+}
