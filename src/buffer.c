@@ -52,3 +52,34 @@ static size_t pointer_distance(const sensor_reading_t *start,
     return (buf->capacity - (size_t)(start - buf->buffer)) +(size_t)(end - buf->buffer)
         
 }
+/*PUBLIC FUNCTION IMPLEMENTATION*/
+
+ring_buffer_t* buffer_create(size_t capacity)
+{
+    printf("[DEBUG] buffer_create(%zu) called\n", capacity)
+
+    // allocating ring buffer control structure
+    ring_buffer_t *buf = malloc(sizeof(ring_buffer_t));
+    if (buf == NULL){
+        return NULL;
+    }
+    // allocating 
+    buf->buffer = malloc(capacity * sizeof(sensor_reading_t));
+    if (buf->buffer == NULL){
+        free(buf);
+        return NULL;
+    }
+    buf->head = buf->buffer; // pointer initialization
+    buf->tail = buf->buffer; // pointer initialization
+    buf->capacity = capacity; // metadata initialization
+    buf->count = 0; //metadata initialization
+    //Initializing status flags
+    buf->status.is_full = 0
+    buf->status.is_empty = 1;
+    buf->status.overflows = 0;
+    buf->status.reserved = 0;
+
+    memset(buf->buffer, 0, capacity * sizeof(sensor_reading_t)); // clearing buffer memory
+    return buf;
+
+}
