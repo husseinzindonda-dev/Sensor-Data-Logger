@@ -46,8 +46,9 @@ static size_t pointer_distance(const sensor_reading_t *start,
                               const sensor_reading_t *end,
                               const ring_buffer_t *buf)
 {
-    if (end >= start)
-        distance = (end - start)
-    distance = ((buf->capacity - (start - buf->buffer)) + (end - buf->buffer))
-    return 0;
+    if (end >= start){
+        return (size_t)(end - start)
+    }
+    return (buf->capacity - (size_t)(start - buf->buffer)) +(size_t)(end - buf->buffer)
+        
 }
