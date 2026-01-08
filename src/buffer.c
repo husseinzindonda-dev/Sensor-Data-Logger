@@ -186,3 +186,36 @@ buffer_status_t buffer_get_status(const ring_buffer_t *buf)
     
     return status;
 }
+void buffer_print_debug(const ring_buffer_t *buf)
+{
+    if (buf == NULL) {
+        printf("Buffer: NULL\n");
+        return;
+    }
+    
+    printf("=== Buffer Debug Info ===\n");
+    printf("Base:    %p\n", (void*)buf->buffer);
+    printf("Head:    %p (offset: %ld)\n", 
+           (void*)buf->head, buf->head - buf->buffer);
+    printf("Tail:    %p (offset: %ld)\n", 
+           (void*)buf->tail, buf->tail - buf->buffer);
+    printf("Capacity: %zu entries\n", buf->capacity);
+    printf("Count:    %zu entries\n", buf->count);
+    printf("Free:     %zu entries\n", buf->capacity - buf->count);
+    printf("Status:   %s %s %s\n",
+           buf->status.is_full ? "FULL" : "NOT_FULL",
+           buf->status.is_empty ? "EMPTY" : "NOT_EMPTY",
+           buf->status.overflows ? "OVERFLOWED" : "NO_OVERFLOW");
+
+    // Print first few entries if they exist
+    printf("First 3 entries (if any):\n");
+    for (int i = 0; i < 3 && i < buf->count; i++) {
+        size_t index = (buf->tail - buf->buffer + i) % buf->capacity;
+        printf("  [%zu] Time: %u, Sensor: %d, Value: %.2f\n",
+               index,
+               buf->buffer[index].timestamp,
+               buf->buffer[index].sensor_id,
+               buf->buffer[index].value);
+    }
+    printf("=========================\n");
+}
