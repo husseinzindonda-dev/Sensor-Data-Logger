@@ -110,7 +110,7 @@ bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
     printf("[DEBUG] buffer_write() called\n");
     // Check if buffer is full
     if (buf->count == buf->capacity){
-        buf->status.is_full   = 1;
+        buf->status.is_full = 1;
         buf->status.overflows = 1;
         return false;
     }
@@ -123,4 +123,66 @@ bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
     buf->count++; // updating counter
     buf->status.is_empty = 0; // false if 0
     buf->status.is_full  = (buf->count == buf->capacity); //true if count = capacity of ring buffer
+}
+bool buffer_read(ring_buffer *buf, sensor_reading_t *output){
+    if (buf == NULL || output == NULL){
+        return false;
+    }
+    printf("[DEBUG] buffer_write() called\n");
+    // Check if buffer is empty
+    if (buf->count == 0){
+        buf->status.is_empty = 1;
+        return false;
+    }
+    // Copying data into current head position
+    *output = *(buf->tail)
+    buf->tail++;
+    if (buf->tail >= buf->buffer + buf->capacity) {
+        buf->tail = buf->buffer;   // wrap-around
+    }
+    buf->count--; // updating counter
+    buf->status.is_full = 0; // false if 0
+    buf->status.is_empty = (buf->count == 0); //true if count = capacity of ring buffer
+    return true;
+}
+bool buffer_is_empty(const ring_buffer_t *buf){
+    return (buf == NULL) || (buf->count == 0);
+}
+bool Buffer_is_full(const ring_buffer_t *buf){
+    return (buf != NULL) & (buf->count == buf->capacity);
+}
+size_t buffer_count(const ring_buffer_t *buf){
+    return (buf == NULL) ? 0 : buf->count;
+}
+size_t buffer_free(const ring_buffer_t *t){
+    return (buf == NULL) ? 0 : (buf->capacity - buf->count);
+}
+void buffer_clear(ring_buffer_t *buf){
+    if (buf = NULL) return;
+
+    buf->head = buf->buffer;
+    buf->tail = buf->buffer;
+    buf->count = 0;
+    buf->status.is_full = 0;
+    buf->status.is_empty = 1;
+    buf->status.overflows = 0;
+}
+bool buffer_peek(const ring_buffer_t *buf, sensor_reading_t *output)
+{
+    if (buffer_is_empty(buf) || output == NULL) {
+        return false;
+    }
+    
+    *output = *buf->tail;  // Copy without advancing tail
+    return true;
+}
+buffer_status_t buffer_get_status(const ring_buffer_t *buf)
+{
+    buffer_status_t status = {0};
+    
+    if (buf != NULL) {
+        status = buf->status;
+    }
+    
+    return status;
 }
