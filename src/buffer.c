@@ -28,7 +28,7 @@ static sensor_reading_t* advance_pointer(sensor_reading_t *ptr, const ring_buffe
 {
     ptr++;
     if (ptr ==(buf->buffer + buf->capacity))
-        ptr = (buf->buffer)
+        ptr = (buf->buffer);
     return ptr;
 }
 
@@ -47,16 +47,16 @@ static size_t pointer_distance(const sensor_reading_t *start,
                               const ring_buffer_t *buf)
 {
     if (end >= start){
-        return (size_t)(end - start)
+        return (size_t)(end - start);
     }
-    return (buf->capacity - (size_t)(start - buf->buffer)) +(size_t)(end - buf->buffer)
+    return (buf->capacity - (size_t)(start - buf->buffer)) +(size_t)(end - buf->buffer);
         
 }
 /*PUBLIC FUNCTION IMPLEMENTATION*/
 
 ring_buffer_t* buffer_create(size_t capacity)
 {
-    printf("[DEBUG] buffer_create(%zu) called\n", capacity)
+    printf("[DEBUG] buffer_create(%zu) called\n", capacity);
 
     // allocating ring buffer control structure
     ring_buffer_t *buf = malloc(sizeof(ring_buffer_t));
@@ -74,7 +74,7 @@ ring_buffer_t* buffer_create(size_t capacity)
     buf->capacity = capacity; // metadata initialization
     buf->count = 0; //metadata initialization
     //Initializing status flags
-    buf->status.is_full = 0
+    buf->status.is_full = 0;
     buf->status.is_empty = 1;
     buf->status.overflows = 0;
     buf->status.reserved = 0;
@@ -115,7 +115,7 @@ bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
         return false;
     }
     // Copying data into current head position
-    *(buf->head) = *reading
+    *(buf->head) = *reading;
     buf->head++;
     if (buf->head >= buf->buffer + buf->capacity) {
         buf->head = buf->buffer;   // wrap-around
@@ -123,19 +123,21 @@ bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
     buf->count++; // updating counter
     buf->status.is_empty = 0; // false if 0
     buf->status.is_full  = (buf->count == buf->capacity); //true if count = capacity of ring buffer
+
+    return true;
 }
-bool buffer_read(ring_buffer *buf, sensor_reading_t *output){
+bool buffer_read(ring_buffer_t *buf, sensor_reading_t *output){
     if (buf == NULL || output == NULL){
         return false;
     }
-    printf("[DEBUG] buffer_write() called\n");
+    printf("[DEBUG] buffer_read() called\n");
     // Check if buffer is empty
     if (buf->count == 0){
         buf->status.is_empty = 1;
         return false;
     }
     // Copying data into current head position
-    *output = *(buf->tail)
+    *output = *(buf->tail);
     buf->tail++;
     if (buf->tail >= buf->buffer + buf->capacity) {
         buf->tail = buf->buffer;   // wrap-around
@@ -143,22 +145,23 @@ bool buffer_read(ring_buffer *buf, sensor_reading_t *output){
     buf->count--; // updating counter
     buf->status.is_full = 0; // false if 0
     buf->status.is_empty = (buf->count == 0); //true if count = capacity of ring buffer
+    
     return true;
 }
 bool buffer_is_empty(const ring_buffer_t *buf){
     return (buf == NULL) || (buf->count == 0);
 }
-bool Buffer_is_full(const ring_buffer_t *buf){
-    return (buf != NULL) & (buf->count == buf->capacity);
+bool buffer_is_full(const ring_buffer_t *buf){
+    return (buf != NULL) && (buf->count == buf->capacity);
 }
 size_t buffer_count(const ring_buffer_t *buf){
     return (buf == NULL) ? 0 : buf->count;
 }
-size_t buffer_free(const ring_buffer_t *t){
+size_t buffer_free(const ring_buffer_t *buf){
     return (buf == NULL) ? 0 : (buf->capacity - buf->count);
 }
 void buffer_clear(ring_buffer_t *buf){
-    if (buf = NULL) return;
+    if (buf == NULL) return;
 
     buf->head = buf->buffer;
     buf->tail = buf->buffer;
