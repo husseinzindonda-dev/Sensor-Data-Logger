@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c"
+    },
+    "C_Cpp.default.compilerPath": "gcc",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/src"
+    ],
+    "C_Cpp.default.defines": [],
+    "C_Cpp.errorSquiggles": "enabled",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    // Hide build artifacts from the file explorer
+    "files.exclude": {
+        "build/": true
+    }
+}

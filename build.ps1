@@ -1,79 +1,131 @@
-# build.ps1 - Simple build script for Windows
-# Run with: .\build.ps1  OR  powershell -ExecutionPolicy Bypass -File build.ps1
+# build.ps1 - Build script for Sensor Data Logger
+# Run with: .\build.ps1
+# Run tests only: .\build.ps1 -TestOnly
+# Skip running after build: .\build.ps1 -NoRun
+
+param(
+    [switch]$TestOnly,
+    [switch]$NoRun
+)
+
+$CFLAGS = "-Wall -Wextra -Werror -std=c11 -g"
 
 Write-Host "=== Sensor Data Logger Build Script ===" -ForegroundColor Cyan
 Write-Host "Project: $PSScriptRoot" -ForegroundColor Gray
 
-# 1. Clean previous build
-Write-Host "`n[1/3] Cleaning previous build..." -ForegroundColor Yellow
+# =============================================================================
+# 1. Clean
+# =============================================================================
+Write-Host "`n[1/4] Cleaning previous build..." -ForegroundColor Yellow
 if (Test-Path "build") {
     Remove-Item -Path "build" -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "   Removed old 'build' directory" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "   No previous build found (that's OK)" -ForegroundColor Gray
 }
 
-# 2. Create fresh build directory
-Write-Host "`n[2/3] Creating build directory..." -ForegroundColor Yellow
+# =============================================================================
+# 2. Create build directory
+# =============================================================================
+Write-Host "`n[2/4] Creating build directory..." -ForegroundColor Yellow
 try {
     New-Item -ItemType Directory -Path "build" -Force | Out-Null
     Write-Host "   Created 'build' directory" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "   ERROR: Could not create build directory" -ForegroundColor Red
     exit 1
 }
 
-# 3. Compile all C files
-Write-Host "`n[3/3] Compiling source files..." -ForegroundColor Yellow
+# =============================================================================
+# 3. Build
+# =============================================================================
+Write-Host "`n[3/4] Compiling..." -ForegroundColor Yellow
 
-# List all source files - add more here as you create them
-$sourceFiles = @(
-    "src/main.c",
-    "src/buffer.c"
-)
+$allOk = $true
 
-# Show what we're compiling
-Write-Host "   Compiling:" -ForegroundColor Gray
-foreach ($file in $sourceFiles) {
-    Write-Host "     - $file" -ForegroundColor Gray
-}
-
-# Build the compile command
-$compileCommand = "gcc $sourceFiles -o build/sensor_logger.exe -Wall -Wextra -Werror -std=c11 -g"
-
-# Show the command (for debugging)
-Write-Host "`n   Command: $compileCommand" -ForegroundColor DarkGray
-
-# Execute compilation
-Write-Host "   Compiling..." -NoNewline
-$compileResult = Invoke-Expression $compileCommand 2>&1
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host " SUCCESS" -ForegroundColor Green
-    
-    # 4. Run the program
-    Write-Host "`n" + ("=" * 60) -ForegroundColor DarkCyan
-    Write-Host "RUNNING PROGRAM" -ForegroundColor White -BackgroundColor DarkBlue
-    Write-Host ("=" * 60) -ForegroundColor DarkCyan
-    
-    # Capture and display program output
-    $output = & ".\build\sensor_logger.exe" 2>&1
-    $output
-    
-    Write-Host ("=" * 60) -ForegroundColor DarkCyan
-    Write-Host "Program exited with code: $LASTEXITCODE" -ForegroundColor Gray
-    
-    # Check if program crashed
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "WARNING: Program returned non-zero exit code" -ForegroundColor Yellow
+function RunCompile {
+    param([string]$Label, [string]$Command)
+    Write-Host "`n   $Label" -ForegroundColor Gray
+    Write-Host "   > $Command" -ForegroundColor DarkGray
+    Write-Host "   Compiling..." -NoNewline
+    $result = Invoke-Expression "$Command 2>&1"
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host " OK" -ForegroundColor Green
     }
-    
-} else {
-    Write-Host " FAILED" -ForegroundColor Red
-    Write-Host "`nCompilation errors:" -ForegroundColor Red
-    Write-Host $compileResult -ForegroundColor Red
-    Write-Host "`nExit code: $LASTEXITCODE" -ForegroundColor Red
-    exit $LASTEXITCODE
+    else {
+        Write-Host " FAILED" -ForegroundColor Red
+        Write-Host $result -ForegroundColor Red
+    }
+    return $LASTEXITCODE
 }
 
-Write-Host "`n=== Build process complete ===" -ForegroundColor Cyan
+if (-not $TestOnly) {
+    $mainSources = "src/buffer.c src/sensors.c src/main.c"
+    $exitCode = RunCompile "Main app  -> build/sensor_logger.exe" "gcc $mainSources -o build/sensor_logger.exe $CFLAGS"
+    if ($exitCode -ne 0) { $allOk = $false }
+}
+
+$exitCode = RunCompile "Tests     -> build/test_buffer.exe" "gcc src/buffer.c tests/test_buffer.c -o build/test_buffer.exe $CFLAGS"
+if ($exitCode -ne 0) { $allOk = $false }
+
+$exitCode = RunCompile "Tests     -> build/test_sensor.exe" "gcc src/buffer.c src/sensors.c tests/test_sensor.c -o build/test_sensor.exe $CFLAGS -lm"
+if ($exitCode -ne 0) { $allOk = $false }
+
+if (-not $allOk) {
+    Write-Host "`nBuild failed - see errors above." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n   All targets compiled successfully." -ForegroundColor Green
+
+if ($NoRun) {
+    Write-Host "`n=== Build complete ===" -ForegroundColor Cyan
+    exit 0
+}
+
+# =============================================================================
+# 4. Run
+# =============================================================================
+Write-Host "`n[4/4] Running..." -ForegroundColor Yellow
+
+$anyFailed = $false
+
+function RunExe {
+    param([string]$Label, [string]$Path)
+    Write-Host ("`n" + ("=" * 60)) -ForegroundColor DarkCyan
+    Write-Host "  $Label" -ForegroundColor White
+    Write-Host ("=" * 60) -ForegroundColor DarkCyan
+    & $Path
+    Write-Host ("=" * 60) -ForegroundColor DarkCyan
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Exited: $LASTEXITCODE (OK)" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  Exited: $LASTEXITCODE (FAILED)" -ForegroundColor Red
+    }
+}
+
+RunExe "Ring Buffer Test Suite" ".\build\test_buffer.exe"
+if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
+
+RunExe "Sensor Layer Test Suite" ".\build\test_sensor.exe"
+if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
+
+if (-not $TestOnly) {
+    RunExe "Sensor Data Logger (main app)" ".\build\sensor_logger.exe"
+    if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
+}
+
+# =============================================================================
+# Summary
+# =============================================================================
+Write-Host ("`n" + ("=" * 60)) -ForegroundColor Cyan
+if ($anyFailed) {
+    Write-Host "  BUILD OK - but one or more runs FAILED" -ForegroundColor Yellow
+}
+else {
+    Write-Host "  ALL DONE - build and runs passed" -ForegroundColor Green
+}
+Write-Host ("=" * 60) -ForegroundColor Cyan

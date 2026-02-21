@@ -1,224 +1,230 @@
 /**
  * @file buffer.c
  * @brief Ring buffer implementation for sensor data logging
- * 
- * Implementation of circular buffer using pointer arithmetic.
- * Memory is managed manually (no malloc hidden inside functions).
+ *
+ * Fixes applied from code review:
+ *  1. advance_pointer() and pointer_distance() are now used (no dead code /
+ *     no -Wunused-function build error under -Werror).
+ *  2. `overflows` 1-bit flag renamed to `overflow_occurred`; a real
+ *     uint32_t overflow_count field tracks rejected write count.
+ *  3. buffer_create(0) rejected — malloc(0) is implementation-defined.
+ *  4. %ld -> %td for ptrdiff_t in buffer_print_debug.
+ *  5. sensor_id printed with PRIu8 to match its uint8_t type.
+ *  6. buffer_free() renamed buffer_free_slots() — avoids shadowing free().
+ *  7. Debug printfs removed from hot paths (write/read).
  */
 
 #include "buffer.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/*=============================================================
-* PRIVATE HELPER FUNCTIONS(not exposed in header)
-*=============================================================*/
+/* ============================================================================
+ * PRIVATE HELPERS
+ * ========================================================================== */
 
-/**
- * @brief Advance pointer within circular buffer bounds
- * 
- * Moves pointer forward by one entry, wrapping around if needed.
- * Does NOT check for full/empty conditions.
- * @param ptr Current pointer
- * @param buf Pointer to buffer structure
- * @return Advanced pointer(wrapped if necessary)
- */
-static sensor_reading_t* advance_pointer(sensor_reading_t *ptr, const ring_buffer_t *buf)
+static sensor_reading_t *advance_pointer(sensor_reading_t *ptr,
+                                         const ring_buffer_t *buf)
 {
     ptr++;
-    if (ptr ==(buf->buffer + buf->capacity))
-        ptr = (buf->buffer);
+    if (ptr == buf->buffer + buf->capacity)
+        ptr = buf->buffer;
     return ptr;
 }
 
-/**
- * @brief Calculate number of entries between two pointers
- * 
- * Accounts for wrap-around in circular buffer.
- * 
- * @param start Starting pointer (earlier in sequence)
- * @param end Ending pointer (later in sequence)
- * @param buf The buffer context
- * @return Number of entries from start to end
- */
 static size_t pointer_distance(const sensor_reading_t *start,
-                              const sensor_reading_t *end,
-                              const ring_buffer_t *buf)
+                                const sensor_reading_t *end,
+                                const ring_buffer_t    *buf)
 {
-    if (end >= start){
+    if (end >= start)
         return (size_t)(end - start);
-    }
-    return (buf->capacity - (size_t)(start - buf->buffer)) +(size_t)(end - buf->buffer);
-        
+
+    return (buf->capacity - (size_t)(start - buf->buffer))
+         + (size_t)(end - buf->buffer);
 }
-/*PUBLIC FUNCTION IMPLEMENTATION*/
 
-ring_buffer_t* buffer_create(size_t capacity)
+/* ============================================================================
+ * PUBLIC API
+ * ========================================================================== */
+
+ring_buffer_t *buffer_create(size_t capacity)
 {
-    printf("[DEBUG] buffer_create(%zu) called\n", capacity);
-
-    // allocating ring buffer control structure
-    ring_buffer_t *buf = malloc(sizeof(ring_buffer_t));
-    if (buf == NULL){
+    if (capacity == 0)
         return NULL;
-    }
-    // allocating 
+
+    ring_buffer_t *buf = malloc(sizeof(ring_buffer_t));
+    if (buf == NULL)
+        return NULL;
+
     buf->buffer = malloc(capacity * sizeof(sensor_reading_t));
-    if (buf->buffer == NULL){
+    if (buf->buffer == NULL) {
         free(buf);
         return NULL;
     }
-    buf->head = buf->buffer; // pointer initialization
-    buf->tail = buf->buffer; // pointer initialization
-    buf->capacity = capacity; // metadata initialization
-    buf->count = 0; //metadata initialization
-    //Initializing status flags
-    buf->status.is_full = 0;
-    buf->status.is_empty = 1;
-    buf->status.overflows = 0;
-    buf->status.reserved = 0;
 
-    memset(buf->buffer, 0, capacity * sizeof(sensor_reading_t)); // clearing buffer memory
+    buf->head           = buf->buffer;
+    buf->tail           = buf->buffer;
+    buf->capacity       = capacity;
+    buf->count          = 0;
+    buf->overflow_count = 0;
+
+    buf->status.is_full           = 0;
+    buf->status.is_empty          = 1;
+    buf->status.overflow_occurred = 0;
+    buf->status.reserved          = 0;
+
+    memset(buf->buffer, 0, capacity * sizeof(sensor_reading_t));
+
+    printf("[DEBUG] buffer_create(%zu) — OK\n", capacity);
     return buf;
-
 }
+
 void buffer_destroy(ring_buffer_t *buf)
 {
-    // Check if buf is NULL 
-    if (buf == NULL) {
+    if (buf == NULL)
         return;
-    }
 
     printf("[DEBUG] buffer_destroy() called\n");
 
-    // Free the data storage 
     free(buf->buffer);
-
-    // defensive cleanup 
     buf->buffer = NULL;
     buf->head   = NULL;
     buf->tail   = NULL;
-
-    // Free the control structure 
     free(buf);
 }
-bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading){
-    if (buf == NULL || reading == NULL){
+
+bool buffer_write(ring_buffer_t *buf, const sensor_reading_t *reading)
+{
+    if (buf == NULL || reading == NULL)
+        return false;
+
+    if (buf->count == buf->capacity) {
+        buf->overflow_count++;
+        buf->status.is_full           = 1;
+        buf->status.overflow_occurred = 1;
         return false;
     }
-    printf("[DEBUG] buffer_write() called\n");
-    // Check if buffer is full
-    if (buf->count == buf->capacity){
-        buf->status.is_full = 1;
-        buf->status.overflows = 1;
-        return false;
-    }
-    // Copying data into current head position
+
     *(buf->head) = *reading;
-    buf->head++;
-    if (buf->head >= buf->buffer + buf->capacity) {
-        buf->head = buf->buffer;   // wrap-around
-    }
-    buf->count++; // updating counter
-    buf->status.is_empty = 0; // false if 0
-    buf->status.is_full  = (buf->count == buf->capacity); //true if count = capacity of ring buffer
+    buf->head    = advance_pointer(buf->head, buf);
+    buf->count++;
+
+    buf->status.is_empty = 0;
+    buf->status.is_full  = (buf->count == buf->capacity);
 
     return true;
 }
-bool buffer_read(ring_buffer_t *buf, sensor_reading_t *output){
-    if (buf == NULL || output == NULL){
+
+bool buffer_read(ring_buffer_t *buf, sensor_reading_t *output)
+{
+    if (buf == NULL || output == NULL)
         return false;
-    }
-    printf("[DEBUG] buffer_read() called\n");
-    // Check if buffer is empty
-    if (buf->count == 0){
+
+    if (buf->count == 0) {
         buf->status.is_empty = 1;
         return false;
     }
-    // Copying data into current head position
-    *output = *(buf->tail);
-    buf->tail++;
-    if (buf->tail >= buf->buffer + buf->capacity) {
-        buf->tail = buf->buffer;   // wrap-around
-    }
-    buf->count--; // updating counter
-    buf->status.is_full = 0; // false if 0
-    buf->status.is_empty = (buf->count == 0); //true if count = capacity of ring buffer
-    
+
+    *output   = *(buf->tail);
+    buf->tail = advance_pointer(buf->tail, buf);
+    buf->count--;
+
+    buf->status.is_full  = 0;
+    buf->status.is_empty = (buf->count == 0);
+
     return true;
 }
-bool buffer_is_empty(const ring_buffer_t *buf){
-    return (buf == NULL) || (buf->count == 0);
-}
-bool buffer_is_full(const ring_buffer_t *buf){
-    return (buf != NULL) && (buf->count == buf->capacity);
-}
-size_t buffer_count(const ring_buffer_t *buf){
-    return (buf == NULL) ? 0 : buf->count;
-}
-size_t buffer_free(const ring_buffer_t *buf){
-    return (buf == NULL) ? 0 : (buf->capacity - buf->count);
-}
-void buffer_clear(ring_buffer_t *buf){
-    if (buf == NULL) return;
 
-    buf->head = buf->buffer;
-    buf->tail = buf->buffer;
-    buf->count = 0;
-    buf->status.is_full = 0;
-    buf->status.is_empty = 1;
-    buf->status.overflows = 0;
-}
 bool buffer_peek(const ring_buffer_t *buf, sensor_reading_t *output)
 {
-    if (buffer_is_empty(buf) || output == NULL) {
+    if (buffer_is_empty(buf) || output == NULL)
         return false;
-    }
-    
-    *output = *buf->tail;  // Copy without advancing tail
+
+    *output = *(buf->tail);
     return true;
 }
+
+bool buffer_is_empty(const ring_buffer_t *buf)
+{
+    return (buf == NULL) || (buf->count == 0);
+}
+
+bool buffer_is_full(const ring_buffer_t *buf)
+{
+    return (buf != NULL) && (buf->count == buf->capacity);
+}
+
+size_t buffer_count(const ring_buffer_t *buf)
+{
+    return (buf == NULL) ? 0 : buf->count;
+}
+
+size_t buffer_free_slots(const ring_buffer_t *buf)
+{
+    return (buf == NULL) ? 0 : (buf->capacity - buf->count);
+}
+
+void buffer_clear(ring_buffer_t *buf)
+{
+    if (buf == NULL)
+        return;
+
+    buf->head  = buf->buffer;
+    buf->tail  = buf->buffer;
+    buf->count = 0;
+    /* overflow_count preserved across clear — reset manually if needed */
+    buf->status.is_full           = 0;
+    buf->status.is_empty          = 1;
+    buf->status.overflow_occurred = (buf->overflow_count > 0);
+}
+
 buffer_status_t buffer_get_status(const ring_buffer_t *buf)
 {
-    buffer_status_t status = {0};
-    
-    if (buf != NULL) {
-        status = buf->status;
-    }
-    
-    return status;
+    buffer_status_t empty = {0};
+    return (buf != NULL) ? buf->status : empty;
 }
+
+uint32_t buffer_overflow_count(const ring_buffer_t *buf)
+{
+    return (buf == NULL) ? 0 : buf->overflow_count;
+}
+
 void buffer_print_debug(const ring_buffer_t *buf)
 {
     if (buf == NULL) {
         printf("Buffer: NULL\n");
         return;
     }
-    
-    printf("=== Buffer Debug Info ===\n");
-    printf("Base:    %p\n", (void*)buf->buffer);
-    printf("Head:    %p (offset: %ld)\n", 
-           (void*)buf->head, buf->head - buf->buffer);
-    printf("Tail:    %p (offset: %ld)\n", 
-           (void*)buf->tail, buf->tail - buf->buffer);
-    printf("Capacity: %zu entries\n", buf->capacity);
-    printf("Count:    %zu entries\n", buf->count);
-    printf("Free:     %zu entries\n", buf->capacity - buf->count);
-    printf("Status:   %s %s %s\n",
-           buf->status.is_full ? "FULL" : "NOT_FULL",
-           buf->status.is_empty ? "EMPTY" : "NOT_EMPTY",
-           buf->status.overflows ? "OVERFLOWED" : "NO_OVERFLOW");
 
-    // Print first few entries if they exist
-    printf("First 3 entries (if any):\n");
-    for (int i = 0; i < 3 && i < buf->count; i++) {
-        size_t index = (buf->tail - buf->buffer + i) % buf->capacity;
-        printf("  [%zu] Time: %u, Sensor: %d, Value: %.2f\n",
-               index,
-               buf->buffer[index].timestamp,
-               buf->buffer[index].sensor_id,
-               buf->buffer[index].value);
+    printf("=== Buffer Debug Info ===\n");
+    printf("Base:     %p\n",               (void *)buf->buffer);
+    printf("Head:     %p (offset: %td)\n", (void *)buf->head, buf->head - buf->buffer);
+    printf("Tail:     %p (offset: %td)\n", (void *)buf->tail, buf->tail - buf->buffer);
+    printf("Capacity: %zu entries\n",      buf->capacity);
+    printf("Count:    %zu entries\n",      buf->count);
+    printf("Free:     %zu entries\n",      buf->capacity - buf->count);
+    printf("Overflows:%"PRIu32"\n",        buf->overflow_count);
+    printf("Status:   %s | %s | %s\n",
+           buf->status.is_full           ? "FULL"       : "NOT_FULL",
+           buf->status.is_empty          ? "EMPTY"      : "NOT_EMPTY",
+           buf->status.overflow_occurred ? "OVERFLOWED" : "NO_OVERFLOW");
+
+    /* Use pointer_distance to sanity-check internal state */
+    size_t computed = pointer_distance(buf->tail, buf->head, buf);
+    if (computed != buf->count)
+        printf("WARNING: count(%zu) != pointer_distance(%zu) — state corrupt!\n",
+               buf->count, computed);
+
+    printf("First %d entries (if any):\n", buf->count < 3 ? (int)buf->count : 3);
+    for (size_t i = 0; i < 3 && i < buf->count; i++) {
+        size_t idx = ((size_t)(buf->tail - buf->buffer) + i) % buf->capacity;
+        printf("  [%zu] time=%"PRIu32"  sensor=%"PRIu8"  value=%.2f\n",
+               idx,
+               buf->buffer[idx].timestamp,
+               buf->buffer[idx].sensor_id,
+               buf->buffer[idx].value);
     }
     printf("=========================\n");
 }
+
