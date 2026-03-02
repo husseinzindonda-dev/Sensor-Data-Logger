@@ -61,16 +61,20 @@ function RunCompile {
     return $LASTEXITCODE
 }
 
+$core = "src/buffer.c src/sensors.c src/sensor_manager.c"
+
 if (-not $TestOnly) {
-    $mainSources = "src/buffer.c src/sensors.c src/main.c"
-    $exitCode = RunCompile "Main app  -> build/sensor_logger.exe" "gcc $mainSources -o build/sensor_logger.exe $CFLAGS"
+    $exitCode = RunCompile "Main app       -> build/sensor_logger.exe" "gcc $core src/main.c -o build/sensor_logger.exe $CFLAGS"
     if ($exitCode -ne 0) { $allOk = $false }
 }
 
-$exitCode = RunCompile "Tests     -> build/test_buffer.exe" "gcc src/buffer.c tests/test_buffer.c -o build/test_buffer.exe $CFLAGS"
+$exitCode = RunCompile "Tests (buffer) -> build/test_buffer.exe" "gcc src/buffer.c tests/test_buffer.c -o build/test_buffer.exe $CFLAGS"
 if ($exitCode -ne 0) { $allOk = $false }
 
-$exitCode = RunCompile "Tests     -> build/test_sensor.exe" "gcc src/buffer.c src/sensors.c tests/test_sensor.c -o build/test_sensor.exe $CFLAGS -lm"
+$exitCode = RunCompile "Tests (sensor) -> build/test_sensor.exe" "gcc src/buffer.c src/sensors.c tests/test_sensor.c -o build/test_sensor.exe $CFLAGS -lm"
+if ($exitCode -ne 0) { $allOk = $false }
+
+$exitCode = RunCompile "Tests (manager)-> build/test_manager.exe" "gcc $core tests/test_manager.c -o build/test_manager.exe $CFLAGS -lm"
 if ($exitCode -ne 0) { $allOk = $false }
 
 if (-not $allOk) {
@@ -107,14 +111,17 @@ function RunExe {
     }
 }
 
-RunExe "Ring Buffer Test Suite" ".\build\test_buffer.exe"
+RunExe "Ring Buffer Test Suite"    ".\build\test_buffer.exe"
 if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
 
-RunExe "Sensor Layer Test Suite" ".\build\test_sensor.exe"
+RunExe "Sensor Layer Test Suite"   ".\build\test_sensor.exe"
+if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
+
+RunExe "Sensor Manager Test Suite" ".\build\test_manager.exe"
 if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
 
 if (-not $TestOnly) {
-    RunExe "Sensor Data Logger (main app)" ".\build\sensor_logger.exe"
+    RunExe "Predictive Maintenance Monitor" ".\build\sensor_logger.exe"
     if ($LASTEXITCODE -ne 0) { $anyFailed = $true }
 }
 
