@@ -1,0 +1,28 @@
+timestamp,sensor_id,sensor_name,value,alert_level
+1000,0,Temperature (C),42.0000,NONE
+2000,1,Vibration (g),0.1200,NONE
+3000,2,Current Draw (A),5.1000,NONE
+4000,0,Temperature (C),43.5000,NONE
+5000,1,Vibration (g),0.1500,NONE
+6000,2,Current Draw (A),5.3000,NONE
+7000,0,Temperature (C),44.0000,NONE
+8000,1,Vibration (g),0.1100,NONE
+9000,2,Current Draw (A),5.2000,NONE
+10000,0,Temperature (C),43.0000,NONE
+11000,1,Vibration (g),0.1400,NONE
+12000,2,Current Draw (A),5.4000,NONE
+13000,0,Temperature (C),44.5000,NONE
+14000,1,Vibration (g),0.1300,NONE
+15000,2,Current Draw (A),5.2000,NONE
+16000,0,Temperature (C),65.0000,NONE
+17000,1,Vibration (g),0.4500,NONE
+18000,2,Current Draw (A),7.5000,NONE
+19000,0,Temperature (C),68.0000,NONE
+20000,1,Vibration (g),0.5100,WARNING
+21000,2,Current Draw (A),8.1000,WARNING
+22000,0,Temperature (C),71.0000,WARNING
+23000,1,Vibration (g),0.5800,WARNING
+24000,2,Current Draw (A),8.4000,WARNING
+25000,0,Temperature (C),91.0000,CRITICAL
+26000,1,Vibration (g),1.4000,CRITICAL
+27000,2,Current Draw (A),11.2000,CRITICAL

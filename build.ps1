@@ -9,6 +9,7 @@ param(
 )
 
 $CFLAGS = "-Wall -Wextra -Werror -std=c11 -g"
+$CORE = "src/buffer.c src/sensors.c src/sensor_manager.c src/logger.c"
 
 Write-Host "=== Sensor Data Logger Build Script ===" -ForegroundColor Cyan
 Write-Host "Project: $PSScriptRoot" -ForegroundColor Gray
@@ -61,10 +62,8 @@ function RunCompile {
     return $LASTEXITCODE
 }
 
-$core = "src/buffer.c src/sensors.c src/sensor_manager.c"
-
 if (-not $TestOnly) {
-    $exitCode = RunCompile "Main app       -> build/sensor_logger.exe" "gcc $core src/main.c -o build/sensor_logger.exe $CFLAGS"
+    $exitCode = RunCompile "Main app       -> build/sensor_logger.exe" "gcc $CORE src/main.c -o build/sensor_logger.exe $CFLAGS"
     if ($exitCode -ne 0) { $allOk = $false }
 }
 
@@ -74,7 +73,7 @@ if ($exitCode -ne 0) { $allOk = $false }
 $exitCode = RunCompile "Tests (sensor) -> build/test_sensor.exe" "gcc src/buffer.c src/sensors.c tests/test_sensor.c -o build/test_sensor.exe $CFLAGS -lm"
 if ($exitCode -ne 0) { $allOk = $false }
 
-$exitCode = RunCompile "Tests (manager)-> build/test_manager.exe" "gcc $core tests/test_manager.c -o build/test_manager.exe $CFLAGS -lm"
+$exitCode = RunCompile "Tests (manager)-> build/test_manager.exe" "gcc src/buffer.c src/sensors.c src/sensor_manager.c tests/test_manager.c -o build/test_manager.exe $CFLAGS -lm"
 if ($exitCode -ne 0) { $allOk = $false }
 
 if (-not $allOk) {
@@ -136,3 +135,7 @@ else {
     Write-Host "  ALL DONE - build and runs passed" -ForegroundColor Green
 }
 Write-Host ("=" * 60) -ForegroundColor Cyan
+
+Write-Host "`nTo view the dashboard:" -ForegroundColor White
+Write-Host "  pip install matplotlib pandas" -ForegroundColor Gray
+Write-Host "  python dashboard/dashboard.py" -ForegroundColor Gray
