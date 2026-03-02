@@ -2,7 +2,7 @@
  * @file main.c
  * @brief Predictive maintenance monitor - Phase 2
  *
- * Same three-sensor simulation as Phase 1 but now every reading
+ * Three-sensor simulation as Phase 1 but every reading
  * is written to data/sensor_log.csv so the Python dashboard
  * can visualise it in real time.
  *
@@ -48,7 +48,7 @@ static void log_and_record(manager_t *m, csv_logger_t *logger,
 
 int main(void)
 {
-    printf("=== Predictive Maintenance Monitor (Phase 2) ===\n\n");
+    printf("=== Predictive Maintenance Monitor ===\n\n");
 
     /* ----------------------------------------------------------------
      * 1. Create data/ directory and open CSV logger

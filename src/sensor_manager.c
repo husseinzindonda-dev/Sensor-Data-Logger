@@ -5,8 +5,7 @@
  * Key design decisions explained:
  *
  * 1. The manager uses a FIXED ARRAY of sensor_t, not malloc per sensor.
- *    This mirrors how embedded systems work - you know at compile time
- *    how many sensors you have. No surprise allocations at runtime.
+ *    We know at compile time how many sensors you have.
  *
  * 2. Sensor IDs are used as array indices directly.
  *    sensor[0] = ID 0, sensor[1] = ID 1, etc.

@@ -17,7 +17,7 @@ A low-cost industrial sensor monitoring system built in C, deployed to Arduino h
 
 ## The problem it solves
 
-Small workshops and factories run motors, compressors, and pumps that fail unexpectedly. Large companies solve this with expensive industrial IoT systems costing thousands. This project provides the same early-warning capability for under £40 in hardware.
+Small workshops and factories run motors, compressors, and pumps that fail unexpectedly. Large companies solve this with expensive industrial IoT systems costing thousands. This project provides the same early-warning capability for under $70 in hardware.
 
 A healthy motor runs cool, vibrates smoothly, and draws consistent current. A failing motor runs hot, vibrates irregularly, and draws more power. This system detects those deviations and raises an alert before failure occurs.
 
@@ -77,15 +77,13 @@ Sensor Data Logger/
 
 ## Hardware
 
-| Part                      | Purpose                      | Cost |
-| ------------------------- | ---------------------------- | ---- |
-| Arduino Uno               | Microcontroller              | ~£12 |
-| DHT11                     | Temperature + humidity       | ~£3  |
-| MPU6050 (GY-521)          | Vibration / accelerometer    | ~£3  |
-| ACS712 5A                 | Current draw _(coming soon)_ | ~£4  |
-| Breadboard + jumper wires | Wiring                       | ~£5  |
-
-**Total: ~£27**
+| Part                      | Purpose                      |
+| ------------------------- | ---------------------------- |
+| Arduino Uno               | Microcontroller              |
+| DHT11                     | Temperature + humidity       |
+| MPU6050 (GY-521)          | Vibration / accelerometer    |
+| ACS712 5A                 | Current draw _(coming soon)_ |
+| Breadboard + jumper wires | Wiring                       |
 
 ### Wiring
 

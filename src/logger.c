@@ -136,9 +136,6 @@ bool logger_write(csv_logger_t *logger,
     /*
      * Write one CSV row:
      *   timestamp, sensor_id, sensor_name, value, alert_level
-     *
-     * %.4f gives 4 decimal places - enough precision for
-     * temperature (21.1500), vibration (0.1300), current (5.2400)
      */
     fprintf(f, "%" PRIu32 ",%" PRIu8 ",%s,%.4f,%s\n",
             reading->timestamp,
@@ -152,7 +149,7 @@ bool logger_write(csv_logger_t *logger,
     /*
      * Flush immediately so Python sees the row right away.
      * On a real embedded system you might flush every N rows
-     * to reduce SD card wear, but for a PC demo this is fine.
+     * to reduce SD card wear.
      */
     fflush(f);
 
